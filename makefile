@@ -1,19 +1,18 @@
+# Compiler settings
 CXX = g++
-CXXFLAGS = -std=c++17 -Wall -Idependancies/npcap-sdk-1.16/Include
+CXXFLAGS = -std=c++17 -Wall -Idependancies/npcap-sdk-1.16/Include -Iinc
 
-# Configure Linker Paths and Libraries
+# Linker settings for Npcap and Windows socket architectures
 LDFLAGS = -Ldependancies/npcap-sdk-1.16/Lib/x64 -lwpcap -lpacket -lws2_32
 
-# Target Executable
+# Build configuration targeting all source files
 TARGET = network_analyzer.exe
-SRCS = src/main.cpp
+SRCS = src/main.cpp src/packet_handler.cpp src/metrics.cpp
 
-# Build Rules
 all: $(TARGET)
 
 $(TARGET): $(SRCS)
 	$(CXX) $(CXXFLAGS) $(SRCS) -o $(TARGET) $(LDFLAGS)
 
-# Clean rule 
 clean:
 	del /Q $(TARGET)
