@@ -10,6 +10,11 @@ int protocol_filter = 1;
 pcap_t* global_handle = nullptr; 
 
 void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_char* pkt_data) {
+    // If logging context pointer is active, flush frame directly into the open time-stamped file
+    if (param != nullptr) {
+        pcap_dump(param, header, pkt_data);
+    }
+
     const EthernetHeader* eth = reinterpret_cast<const EthernetHeader*>(pkt_data);
     uint16_t eth_type = ntohs(eth->type);
 
