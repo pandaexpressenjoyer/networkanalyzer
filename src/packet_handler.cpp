@@ -67,8 +67,10 @@ void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_cha
             uint16_t src_port = ntohs(tcp->src_port);
             uint16_t dst_port = ntohs(tcp->dest_port);
 
-            // THIS IS THE CRITICAL MISSING PIECE: Logging the flow!
             update_flow(src_ip_str, src_port, dst_ip_str, dst_port, "TCP", header->len);
+            
+            // FEED THE SECURITY ENGINE: Log the destination port attempt
+            detect_port_scan(src_ip_str, dst_port);
 
             cout << src_ip_str << ":" << src_port << " -> " << dst_ip_str << ":" << dst_port;
             cout << " | Size: " << header->len << " bytes" << endl;
@@ -81,7 +83,6 @@ void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_cha
             uint16_t src_port = ntohs(udp->src_port);
             uint16_t dest_port = ntohs(udp->dest_port);
 
-            // THIS IS THE CRITICAL MISSING PIECE: Logging the flow!
             update_flow(src_ip_str, src_port, dst_ip_str, dest_port, "UDP", header->len);
 
             cout << src_ip_str << ":" << src_port << " -> " << dst_ip_str << ":" << dest_port;
