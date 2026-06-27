@@ -43,6 +43,15 @@ struct TCPHeader {
     uint16_t urgent_ptr;      
 };
 
+struct DNSHeader {
+    uint16_t transaction_id;
+    uint16_t flags;
+    uint16_t questions_count;
+    uint16_t answers_count;
+    uint16_t authority_count;
+    uint16_t additional_count;
+};
+
 #pragma pack(pop)
 
 #endif
