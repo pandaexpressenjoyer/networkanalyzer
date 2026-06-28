@@ -3,10 +3,11 @@
 
 #include <string>
 #include <unordered_map>
-#include <unordered_set> // Required for storing unique port numbers
+#include <unordered_set>
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+
 struct NetworkStats {
     unsigned long long total_packets = 0;
     unsigned long long tcp_packets = 0;
@@ -22,17 +23,26 @@ struct FlowStats {
     unsigned long long packet_count = 0;
 };
 
+// New structure to track physical hardware devices
+struct DeviceInfo {
+    std::string last_seen_ip;
+    unsigned long long total_packets = 0;
+};
+
 extern NetworkStats stats;
 extern std::unordered_map<std::string, FlowStats> flow_table;
-// New tracking table for our Intrusion Detection Engine
 extern std::unordered_map<std::string, std::unordered_set<uint16_t>> port_scan_map;
+// New tracking table for hardware discovery
+extern std::unordered_map<std::string, DeviceInfo> device_table;
 
 void update_flow(const std::string& src_ip, uint16_t src_port, 
                  const std::string& dst_ip, uint16_t dst_port, 
                  const std::string& protocol, uint32_t length);
 
-// New IDS function
 void detect_port_scan(const std::string& src_ip, uint16_t dst_port);
+
+// New function to log discovered devices
+void update_device(const std::string& mac, const std::string& ip);
 
 void print_metrics_dashboard();
 

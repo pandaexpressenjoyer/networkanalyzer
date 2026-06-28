@@ -16,18 +16,13 @@ string parse_dns_name(const uint8_t* payload_start, const uint8_t* name_ptr, int
     
     while (*curr != 0) {
         if ((curr - payload_start) > packet_len) return "[Malformed Name]";
-
         uint8_t label_len = *curr;
         curr++;
-
         for (uint8_t i = 0; i < label_len; i++) {
             domain += static_cast<char>(*curr);
             curr++;
         }
-
-        if (*curr != 0) {
-            domain += ".";
-        }
+        if (*curr != 0) domain += ".";
     }
     return domain;
 }
@@ -35,6 +30,15 @@ string parse_dns_name(const uint8_t* payload_start, const uint8_t* name_ptr, int
 string ip_to_string(const uint8_t* ip_array) {
     return to_string(ip_array[0]) + "." + to_string(ip_array[1]) + "." + 
            to_string(ip_array[2]) + "." + to_string(ip_array[3]);
+}
+
+// Helper to stringify raw MAC address bytes into standard hex notation
+string mac_to_string(const uint8_t* mac_array) {
+    char buf[18];
+    snprintf(buf, sizeof(buf), "%02X:%02X:%02X:%02X:%02X:%02X", 
+             mac_array[0], mac_array[1], mac_array[2], 
+             mac_array[3], mac_array[4], mac_array[5]);
+    return string(buf);
 }
 
 void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_char* pkt_data) {
@@ -58,18 +62,19 @@ void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_cha
         uint8_t ip_header_len = (ip->version_ihl & 0x0F) * 4;
         string src_ip_str = ip_to_string(ip->src_ip);
         string dst_ip_str = ip_to_string(ip->dest_ip);
+        
+        // Extract Layer 2 MAC Address and feed the Device Discovery Engine
+        string src_mac_str = mac_to_string(eth->src_mac);
+        update_device(src_mac_str, src_ip_str);
 
         if (ip->protocol == 6) {
             stats.tcp_packets++;
             cout << "[TCP]  ";
             const TCPHeader* tcp = reinterpret_cast<const TCPHeader*>(pkt_data + 14 + ip_header_len);
-            
             uint16_t src_port = ntohs(tcp->src_port);
             uint16_t dst_port = ntohs(tcp->dest_port);
 
             update_flow(src_ip_str, src_port, dst_ip_str, dst_port, "TCP", header->len);
-            
-            // FEED THE SECURITY ENGINE: Log the destination port attempt
             detect_port_scan(src_ip_str, dst_port);
 
             cout << src_ip_str << ":" << src_port << " -> " << dst_ip_str << ":" << dst_port;
@@ -79,7 +84,6 @@ void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_cha
             stats.udp_packets++;
             cout << "[UDP]  ";
             const UDPHeader* udp = reinterpret_cast<const UDPHeader*>(pkt_data + 14 + ip_header_len);
-            
             uint16_t src_port = ntohs(udp->src_port);
             uint16_t dest_port = ntohs(udp->dest_port);
 
@@ -96,7 +100,6 @@ void packet_handler(u_char* param, const struct pcap_pkthdr* header, const u_cha
                 if (questions > 0) {
                     const uint8_t* dns_name_start = udp_payload + sizeof(DNSHeader);
                     int remaining_packet_length = header->len - (14 + ip_header_len + 8);
-                    
                     string queried_domain = parse_dns_name(udp_payload, dns_name_start, remaining_packet_length);
                     cout << "   └── [DNS Query] Lookup Domain: " << queried_domain << endl;
                 }

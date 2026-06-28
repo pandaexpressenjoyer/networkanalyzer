@@ -1,14 +1,15 @@
 #include "metrics.h"
 #include <iostream>
 #include <iomanip>
+#include <cstdint>
 
 using namespace std;
 
 NetworkStats stats;
 unordered_map<string, FlowStats> flow_table;
 unordered_map<string, unordered_set<uint16_t>> port_scan_map;
+unordered_map<string, DeviceInfo> device_table;
 
-// Configure the security sensitivity (alert after hitting 15 unique ports)
 const int PORT_SCAN_THRESHOLD = 15; 
 
 void update_flow(const string& src_ip, uint16_t src_port, 
@@ -27,19 +28,21 @@ void update_flow(const string& src_ip, uint16_t src_port,
     flow_table[flow_key].packet_count += 1;
 }
 
-// Intrusion Detection Engine: Evaluates traffic for scanning heuristics
 void detect_port_scan(const string& src_ip, uint16_t dst_port) {
-    // Insert the destination port into the set (sets automatically ignore duplicates)
     port_scan_map[src_ip].insert(dst_port);
 
-    // If the size of the set exactly hits our threshold, trigger a live terminal warning
-    // (We use '==' instead of '>=' so it only prints the warning once per IP)
-    if (port_scan_map[src_ip].size() == PORT_SCAN_THRESHOLD) {
+    if (port_scan_map[src_ip].size() >= PORT_SCAN_THRESHOLD) {
         cout << "\n==================================================" << endl;
-        cout << " [!] INTRUSION ALERT: PORT SCAN DETECTED" << endl;
-        cout << "     Source IP: " << src_ip << " is scanning the network!" << endl;
+        cout << " [!] 🚨 INTRUSION ALERT: PORT SCAN DETECTED 🚨" << endl;
+        cout << "     Source IP: " << src_ip << " hit " << port_scan_map[src_ip].size() << " unique ports!" << endl;
         cout << "==================================================\n" << endl;
     }
+}
+
+// Hardware tracking logic: updates the map with the latest IP associated with a MAC
+void update_device(const string& mac, const string& ip) {
+    device_table[mac].last_seen_ip = ip;
+    device_table[mac].total_packets++;
 }
 
 void print_metrics_dashboard() {
@@ -54,14 +57,12 @@ void print_metrics_dashboard() {
         cout << " [TCP]  Packets: " << stats.tcp_packets  << " (" << (stats.tcp_packets * 100.0 / stats.total_packets)  << "%)" << endl;
         cout << " [UDP]  Packets: " << stats.udp_packets  << " (" << (stats.udp_packets * 100.0 / stats.total_packets)  << "%)" << endl;
         cout << " [ICMP] Packets: " << stats.icmp_packets << " (" << (stats.icmp_packets * 100.0 / stats.total_packets) << "%)" << endl;
-        cout << " [Misc] Packets: " << stats.other_packets << " (" << (stats.other_packets * 100.0 / stats.total_packets) << "%)" << endl;
         
         cout << "\n--------------------------------------------------" << endl;
         cout << "               LARGEST CONNECTION FLOWS           " << endl;
         cout << "--------------------------------------------------" << endl;
 
         vector<pair<string, FlowStats>> sorted_flows(flow_table.begin(), flow_table.end());
-        
         sort(sorted_flows.begin(), sorted_flows.end(), 
              [](const auto& a, const auto& b) { return a.second.total_bytes > b.second.total_bytes; });
 
@@ -70,6 +71,18 @@ void print_metrics_dashboard() {
             cout << " " << i + 1 << ". [" << sorted_flows[i].second.protocol << "] " << sorted_flows[i].first << "\n"
                  << "    Packets: " << sorted_flows[i].second.packet_count 
                  << " | Data: " << fixed << setprecision(2) << (sorted_flows[i].second.total_bytes / 1024.0) << " KB\n" << endl;
+        }
+
+        cout << "--------------------------------------------------" << endl;
+        cout << "               DISCOVERED HARDWARE         " << endl;
+        cout << "--------------------------------------------------" << endl;
+        
+        // Print every unique physical device discovered during the session
+        int dev_count = 1;
+        for (const auto& device : device_table) {
+            cout << " " << dev_count++ << ". MAC: " << device.first << "\n"
+                 << "    IP: " << device.second.last_seen_ip 
+                 << " | Packets Sent: " << device.second.total_packets << "\n" << endl;
         }
 
     } else {
