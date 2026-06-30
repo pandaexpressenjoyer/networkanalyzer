@@ -6,7 +6,8 @@
 #include <unordered_set>
 #include <vector>
 #include <algorithm>
-#include <cstdint>
+#include <mutex>
+#include <atomic>
 
 struct NetworkStats {
     unsigned long long total_packets = 0;
@@ -23,7 +24,6 @@ struct FlowStats {
     unsigned long long packet_count = 0;
 };
 
-// New structure to track physical hardware devices
 struct DeviceInfo {
     std::string last_seen_ip;
     unsigned long long total_packets = 0;
@@ -31,19 +31,21 @@ struct DeviceInfo {
 
 extern NetworkStats stats;
 extern std::unordered_map<std::string, FlowStats> flow_table;
-extern std::unordered_map<std::string, std::unordered_set<uint16_t>> port_scan_map;
-// New tracking table for hardware discovery
 extern std::unordered_map<std::string, DeviceInfo> device_table;
+
+extern std::unordered_map<std::string, std::unordered_set<uint16_t>> port_scan_map;
+extern std::unordered_map<std::string, int> flagged_scanners;
+
+
+extern std::mutex data_mutex;
+extern std::atomic<bool> is_capturing;
 
 void update_flow(const std::string& src_ip, uint16_t src_port, 
                  const std::string& dst_ip, uint16_t dst_port, 
                  const std::string& protocol, uint32_t length);
 
-void detect_port_scan(const std::string& src_ip, uint16_t dst_port);
-
-// New function to log discovered devices
 void update_device(const std::string& mac, const std::string& ip);
-
-void print_metrics_dashboard();
+void detect_port_scan(const std::string& src_ip, uint16_t dst_port);
+void draw_live_dashboard();
 
 #endif
